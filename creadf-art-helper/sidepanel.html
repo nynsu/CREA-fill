@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PREENCHEDOR AUTOMÁTICO DE ART SUPER PODEROSO CASEIRO</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>PREENCHEDOR AUTOMÁTICO DE ART SUPER PODEROSO CASEIRO</h1>
+        <p class="subtitle">Cole os dados, confira e preencha o formulário</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 1. Entrada de texto -->
+    <section class="card">
+      <div class="card-header">
+        <h2>1. Mensagem recebida</h2>
+        <div class="btn-row">
+          <button id="btnParse" type="button" class="btn btn-secondary btn-xs">Extrair</button>
+          <button id="btnClear" type="button" class="btn btn-ghost btn-xs">Limpar</button>
+        </div>
+      </div>
+      <select id="historySelect" class="history-select hidden">
+        <option value="">Histórico recente (últimas 5)...</option>
+      </select>
+      <textarea
+        id="rawInput"
+        rows="14"
+        placeholder="Cole aqui a mensagem do WhatsApp/Teams com os dados do contratante e da obra..."
+      ></textarea>
+    </section>
+
+    <!-- Dados Iniciais (Aba 1) -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>1. Dados Iniciais</h2>
+        </span>
+      </summary>
+      <div class="grid details-body">
+        <label>
+          <span>Forma de registro</span>
+          <select id="s_formaRegistro">
+            <option value="1">Inicial</option>
+            <option value="2">Complementar</option>
+            <option value="3">Substituição</option>
+          </select>
+        </label>
+        <label>
+          <span>Participação</span>
+          <select id="s_participacaoTecnica">
+            <option value="1">Individual</option>
+            <option value="2">Coautor</option>
+            <option value="3">Corresponsável</option>
+            <option value="4">Equipe</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <!-- 2. Dados extraídos -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>2. Contratante &amp; Contrato</h2>
+        </span>
+        <span id="badgeContrato" class="badge hidden"></span>
+      </summary>
+      <div class="grid details-body">
+        <label class="full">
+          <span>Tipo de contratante</span>
+          <select id="s_tipoContratante">
+            <option value="3">Pessoa Jurídica de Direito Público</option>
+            <option value="2">Pessoa Jurídica de Direito Privado</option>
+            <option value="1">Pessoa física</option>
+          </select>
+        </label>
+        <label class="full">
+          <span>Nome do Contratante</span>
+          <input id="f_contratanteNome" type="text" maxlength="60" />
+        </label>
+        <label>
+          <span>CPF/CNPJ</span>
+          <input id="f_cnpj" type="text" maxlength="18" />
+        </label>
+        <label>
+          <span>Nº Processo / Contrato</span>
+          <input id="f_numeroProcesso" type="text" maxlength="30" />
+        </label>
+        <label>
+          <span>Ação institucional</span>
+          <select id="s_acaoInstitucional">
+            <option value="0">Nenhuma/Não Aplicável</option>
+            <option value="6">Órgão Público</option>
+            <option value="7">Convênio do Crea</option>
+            <option value="2">Calamidade Pública</option>
+            <option value="3">Entidade Beneficente</option>
+          </select>
+        </label>
+        <label>
+          <span>Valor Obra/Serviço (R$)</span>
+          <input id="s_valorContratoPadrao" type="text" maxlength="15" placeholder="1000" />
+        </label>
+        <label class="full">
+          <span>E-mail</span>
+          <input id="f_email" type="text" maxlength="50" />
+        </label>
+        <label class="small">
+          <span>DDD</span>
+          <input id="f_ddd" type="text" maxlength="2" />
+        </label>
+        <label class="grow">
+          <span>Telefone</span>
+          <input id="f_telefone" type="text" maxlength="9" />
+        </label>
+        <label>
+          <span>CEP Contratante</span>
+          <input id="f_contratanteCep" type="text" maxlength="9" />
+        </label>
+        <label>
+          <span>Número</span>
+          <input id="f_contratanteNumero" type="text" maxlength="5" placeholder="opcional" />
+        </label>
+        <label class="full">
+          <span>Endereço</span>
+          <input id="f_contratanteEndereco" type="text" maxlength="50" />
+        </label>
+        <label>
+          <span>Bairro</span>
+          <input id="f_contratanteBairro" type="text" maxlength="72" placeholder="opcional" />
+        </label>
+        <label>
+          <span>Cidade</span>
+          <input id="f_contratanteCidade" type="text" maxlength="50" placeholder="opcional" />
+        </label>
+      </div>
+    </details>
+
+    <!-- 3. Obra / Aldeia -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>3. Obra / Aldeia</h2>
+        </span>
+        <span class="summary-right">
+          <span id="badgeObra" class="badge hidden"></span>
+          <a id="mapsLink" href="#" target="_blank" rel="noopener" class="maps-link hidden">Abrir no Mapa ↗</a>
+        </span>
+      </summary>
+      <div class="grid details-body">
+        <label class="full">
+          <span>Finalidade da Obra</span>
+          <select id="s_finalidade">
+            <option value="20">Saneamento básico</option>
+            <option value="21">Saúde</option>
+            <option value="13">Infra-estrutura</option>
+            <option value="19">Rural</option>
+            <option value="22">Outro</option>
+          </select>
+        </label>
+        <label class="full">
+          <span>Logradouro / Nome da Aldeia</span>
+          <input id="f_nomeAldeia" type="text" maxlength="50" />
+        </label>
+        <label>
+          <span>CEP da Obra</span>
+          <input id="f_obraCep" type="text" maxlength="9" />
+        </label>
+        <label>
+          <span>Número</span>
+          <input id="f_obraNumero" type="text" maxlength="5" placeholder="S/N" />
+        </label>
+        <label>
+          <span>Cidade</span>
+          <input id="f_obraCidade" type="text" maxlength="50" />
+        </label>
+        <label class="small">
+          <span>UF</span>
+          <input id="f_obraUf" type="text" maxlength="2" />
+        </label>
+        <label class="full">
+          <span>Bairro</span>
+          <input id="f_obraBairro" type="text" maxlength="72" placeholder="ZONA RURAL" />
+        </label>
+        <label>
+          <span>Latitude (Decimal)</span>
+          <input id="f_latitude" type="text" maxlength="20" />
+        </label>
+        <label>
+          <span>Longitude (Decimal)</span>
+          <input id="f_longitude" type="text" maxlength="20" />
+        </label>
+      </div>
+    </details>
+
+    <!-- 4. Atividade Técnica e Observações -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>4. Atividade Técnica e Observações</h2>
+        </span>
+      </summary>
+      <div class="details-body">
+        <div class="atividade-box">
+          <label>
+            <span>Preset selecionado</span>
+            <div class="btn-row preset-row">
+              <select id="s_atividadePresetId"></select>
+              <button id="btnDeletePreset" type="button" class="btn btn-ghost btn-xs">Excluir</button>
+            </div>
+          </label>
+          <p id="atividadeSummary" class="muted"></p>
+          <div class="grid">
+            <label>
+              <span>Unidade (sobrescrever)</span>
+              <select id="s_atividadeUnidadeOverride">
+                <option value="">Usar do preset</option>
+                <option value="73">unidade - un</option>
+                <option value="40">metros quadrados - m2</option>
+              </select>
+            </label>
+            <label>
+              <span>Quantidade / Área</span>
+              <input id="f_atividadeQuantidade" type="text" maxlength="14" placeholder="ex: 150 ou 150,50" />
+            </label>
+          </div>
+          <input id="presetNameInput" type="text" maxlength="50" placeholder="Nome do novo preset ao capturar (opcional)" />
+          <div class="btn-row">
+            <button id="btnCaptureAtividade" type="button" class="btn btn-secondary btn-xs">Capturar da página</button>
+            <button id="btnApplyAtividade" type="button" class="btn btn-primary btn-xs">Aplicar Selecionado</button>
+            <button id="btnExportPresets" type="button" class="btn btn-ghost btn-xs" title="Exportar presets para JSON">Exportar</button>
+            <button id="btnImportPresets" type="button" class="btn btn-ghost btn-xs" title="Importar presets de JSON">Importar</button>
+            <input id="importPresetsFile" type="file" accept=".json,application/json" class="hidden" />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card-header">
+          <h3>Observações (opcional)</h3>
+          <span id="obsCounter" class="counter">0/300</span>
+        </div>
+        <textarea id="f_observacoes" rows="3" maxlength="300"></textarea>
+        <p id="obsWarning" class="warn hidden">Contém caracteres não aceitos pelo CREA-DF.</p>
+        <div class="btn-row" style="margin-top: 6px;">
+          <button id="btnLancarObs" type="button" class="btn btn-primary btn-xs">Lançar</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- 5. Declarações -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>5. Declarações</h2>
+        </span>
+      </summary>
+      <div class="grid details-body">
+        <label>
+          <span>Arbitragem</span>
+          <select id="s_clausula">
+            <option value="1">Concordo</option>
+            <option value="0">Não Concordo</option>
+          </select>
+        </label>
+        <label>
+          <span>Acessibilidade</span>
+          <select id="s_acessibilidade">
+            <option value="1">Sim</option>
+            <option value="0">Não</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <!-- 6. Opções de Automação -->
+    <details class="card">
+      <summary class="card-header clickable">
+        <span class="title-with-chevron">
+          <span class="chevron">▾</span>
+          <h2>6. Opções de Automação</h2>
+        </span>
+      </summary>
+      <div class="details-body">
+        <div class="checks">
+          <label class="check">
+            <input id="s_preencherDatasContratoHoje" type="checkbox" checked />
+            <span>Preencher datas automáticas (Contrato e Obra: hoje e +1 ano)</span>
+          </label>
+          <label class="check">
+            <input id="s_lancarAtividadesPadrao" type="checkbox" checked />
+            <span>Lançar atividades padrão do preset selecionado</span>
+          </label>
+          <label class="check">
+            <input id="s_preencherObservacoes" type="checkbox" />
+            <span>Preencher Observações na aba 4</span>
+          </label>
+          <label class="check">
+            <input id="s_repetirProprietario" type="checkbox" checked />
+            <span>Usar contratante também como proprietário</span>
+          </label>
+        </div>
+      </div>
+    </details>
+  </main>
+
+  <footer class="footer">
+    <div id="statusMsg" class="status">Pronto para extrair e preencher.</div>
+    <button id="btnFillAll" type="button" class="btn btn-primary btn-block">
+      Preencher ART Completa
+    </button>
+    <div class="step-buttons">
+      <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="iniciais">1. Iniciais</button>
+      <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="contrato">2. Contrato</button>
+      <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="obra">3. Obra</button>
+      <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="atividades">4. Ativ.</button>
+      <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="declaracoes">5. Decl.</button>
+    </div>
+  </footer>
+
+  <script src="parser.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
