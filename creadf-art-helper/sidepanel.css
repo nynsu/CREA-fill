@@ -292,6 +292,36 @@ textarea:focus {
   flex-shrink: 0;
 }
 
+.obra-tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.obra-tab {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.obra-tab:hover {
+  color: var(--text);
+}
+
+.obra-tab.active {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: var(--primary);
+  color: #93c5fd;
+}
+
 .history-row {
   margin-bottom: 7px;
   align-items: stretch;

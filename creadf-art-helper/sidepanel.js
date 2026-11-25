@@ -206,7 +206,10 @@ const BUILT_IN_PRESETS = [
 
 let atividadePresets = [...BUILT_IN_PRESETS];
 let selectedPresetId = DEFAULT_BIM_PRESET_ID;
+const OBRA_ADDRESS_FIELDS = ['nomeAldeia', 'obraCep', 'obraNumero', 'obraCidade', 'obraUf', 'obraBairro'];
 let recentHistory = [];
+let allObras = [];
+let activeObraIndex = 0;
 let isFilling = false;
 
 function $(id) {
@@ -276,16 +279,65 @@ function updateCardBadges() {
 
   const badgeO = $('badgeObra');
   if (badgeO) {
+    const extraCount = Math.max(0, allObras.length - 1);
+    const extraSuffix = extraCount > 0 ? ` (+${extraCount})` : '';
+    const firstAldeia = (allObras[0] && allObras[0].nomeAldeia) || data.nomeAldeia;
     if (!hasAnyData) {
       badgeO.classList.add('hidden');
     } else if (!data.latitude || !data.longitude) {
-      badgeO.textContent = data.nomeAldeia ? `${data.nomeAldeia} · ⚠ coord.` : '⚠ Falta coord.';
+      badgeO.textContent = (firstAldeia ? `${firstAldeia} · ⚠ coord.` : '⚠ Falta coord.') + extraSuffix;
       badgeO.className = 'badge badge-warn';
     } else {
-      badgeO.textContent = data.nomeAldeia ? `${data.nomeAldeia} · 📍` : '📍 Coord. OK';
+      badgeO.textContent = (firstAldeia ? `${firstAldeia} · 📍` : '📍 Coord. OK') + extraSuffix;
       badgeO.className = 'badge';
     }
   }
+  renderObraTabs();
+}
+
+function syncActiveObraFromForm() {
+  if (!allObras[activeObraIndex]) return;
+  for (const k of OBRA_ADDRESS_FIELDS) {
+    const el = $(`f_${k}`);
+    if (el) allObras[activeObraIndex][k] = el.value.trim();
+  }
+}
+
+function loadObraIntoForm(idx) {
+  const obra = allObras[idx];
+  if (!obra) return;
+  activeObraIndex = idx;
+  for (const k of OBRA_ADDRESS_FIELDS) {
+    const el = $(`f_${k}`);
+    if (el && obra[k] !== undefined) {
+      el.value = obra[k];
+    }
+  }
+  renderObraTabs();
+}
+
+function renderObraTabs() {
+  const wrap = $('obraTabs');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (allObras.length <= 1) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  allObras.forEach((obra, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `obra-tab${idx === activeObraIndex ? ' active' : ''}`;
+    btn.textContent = `${idx + 1}º Endereço`;
+    if (obra.nomeAldeia) btn.title = obra.nomeAldeia;
+    btn.addEventListener('click', () => {
+      syncActiveObraFromForm();
+      loadObraIntoForm(idx);
+      persistState();
+    });
+    wrap.appendChild(btn);
+  });
 }
 
 function renderHistorySelect() {
@@ -471,9 +523,12 @@ function renderAtividadeSummary(preset) {
 }
 
 function persistState() {
+  syncActiveObraFromForm();
   const state = {
     rawInput: $('rawInput').value,
     data: readFormData(),
+    allObras,
+    activeObraIndex,
     settings: readSettings(),
     atividadePresets,
     selectedPresetId,
@@ -490,13 +545,21 @@ function parseFromInput(opts = {}) {
     return;
   }
   const parsed = window.ArtParser.parseArtMessage(raw);
+  allObras = Array.isArray(parsed.obras) && parsed.obras.length > 0 ? parsed.obras : [];
+  activeObraIndex = 0;
   writeFormData(parsed);
   if (!skipHistory) {
     addToHistory(raw, parsed);
   }
   clearStepDoneStates();
   persistState();
-  setStatus('Dados extraídos! Confira e clique em Preencher.', 'ok');
+  const totalEnderecos = allObras.length;
+  setStatus(
+    totalEnderecos > 1
+      ? `Dados extraídos (${totalEnderecos} endereços de obra)! Confira e clique em Preencher.`
+      : 'Dados extraídos! Confira e clique em Preencher.',
+    'ok'
+  );
 }
 
 async function getActiveArtTab() {
@@ -545,6 +608,21 @@ async function pesquisarCepNaPagina(tabId, endNum) {
     func: (num) => {
       if (typeof window.PesquisaCep === 'function') {
         window.PesquisaCep(num, 1, window.location.hostname || 'art.creadf.org.br');
+      }
+    }
+  });
+}
+
+async function cadastrarEnderecoObraNaPagina(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    world: 'MAIN',
+    func: () => {
+      if (typeof window.dados_endereco_obraservico === 'function') {
+        window.dados_endereco_obraservico('CADASTRAR');
+      } else {
+        const link = document.querySelector('a[href*="dados_endereco_obraservico"]');
+        if (link) link.click();
       }
     }
   });
@@ -629,7 +707,12 @@ async function handleFill(step) {
   try {
     setFillingState(true, 'Preenchendo formulário...');
     setStatus('Preenchendo campos...');
-    const data = readFormData();
+    syncActiveObraFromForm();
+    const rawData = readFormData();
+    const data =
+      allObras.length > 0
+        ? { ...rawData, ...allObras[0], latitude: rawData.latitude, longitude: rawData.longitude }
+        : rawData;
     const settings = readSettings();
     persistState();
     const tabId = await getActiveArtTab();
@@ -657,6 +740,26 @@ async function handleFill(step) {
       });
       if (endRes && endRes.ok) {
         totalFilled += endRes.filled || 0;
+      }
+    }
+
+    if ((step === 'all' || step === 'obra') && allObras.length > 1) {
+      for (let i = 1; i < allObras.length; i++) {
+        setFillingState(true, `Adicionando endereço ${i + 1}/${allObras.length}...`);
+        const contRes = await chrome.tabs.sendMessage(tabId, { type: 'FILL', step: 'get_obra_cont' });
+        const prevCont = (contRes && contRes.cont) || '';
+        await cadastrarEnderecoObraNaPagina(tabId);
+        await chrome.tabs.sendMessage(tabId, { type: 'FILL', step: 'wait_obra_added', prevCont });
+        const extraRes = await chrome.tabs.sendMessage(tabId, {
+          type: 'FILL',
+          step: 'obra_extra',
+          data: allObras[i],
+          settings,
+          containerId: `div_dados_enderecos_obraservico_${prevCont}`
+        });
+        if (extraRes && extraRes.ok) {
+          totalFilled += extraRes.filled || 0;
+        }
       }
     }
 
@@ -690,7 +793,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const state = res && res.creadfArtState;
     if (state) {
       if (state.rawInput) $('rawInput').value = state.rawInput;
+      allObras = Array.isArray(state.allObras) ? state.allObras : [];
+      activeObraIndex =
+        Number.isInteger(state.activeObraIndex) && state.activeObraIndex < allObras.length
+          ? state.activeObraIndex
+          : 0;
       if (state.data) writeFormData(state.data);
+      if (allObras[activeObraIndex]) loadObraIntoForm(activeObraIndex);
       writeSettings(state.settings || {});
       if (Array.isArray(state.atividadePresets) && state.atividadePresets.length > 0) {
         const builtInIds = new Set(BUILT_IN_PRESETS.map((p) => p.id));
@@ -746,6 +855,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('btnClear').addEventListener('click', () => {
     $('rawInput').value = '';
+    allObras = [];
+    activeObraIndex = 0;
     const empty = {};
     for (const k of DATA_FIELDS) empty[k] = '';
     writeFormData(empty);
@@ -756,6 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('btnResetAll').addEventListener('click', () => {
     $('rawInput').value = '';
+    allObras = [];
+    activeObraIndex = 0;
     const empty = {};
     for (const k of DATA_FIELDS) empty[k] = '';
     writeFormData(empty);
@@ -775,6 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = $(`f_${key}`);
     if (!el) continue;
     el.addEventListener('input', () => {
+      if (OBRA_ADDRESS_FIELDS.includes(key)) syncActiveObraFromForm();
       if (key === 'observacoes') updateObsMeta();
       if (key === 'latitude' || key === 'longitude') updateMapsLink();
       if (key === 'atividadeQuantidade') updateQuantityHighlight();

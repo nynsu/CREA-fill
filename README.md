@@ -24,7 +24,7 @@ Extensão de navegador (**Chrome / Edge — Manifest V3**) com **Painel Lateral 
 
 ## 🚀 Como instalar (Chrome ou Edge)
 
-1. Baixe o arquivo `creadf-art-helper-v1.2.0.zip` na página de [Releases](https://github.com/nynsu/CREA-fill/releases) e extraia a pasta `creadf-art-helper` (ou clone este repositório).
+1. Baixe o arquivo `creadf-art-helper-v1.3.0.zip` na página de [Releases](https://github.com/nynsu/CREA-fill/releases) e extraia a pasta `creadf-art-helper` (ou clone este repositório).
 2. Abra `chrome://extensions` (ou `edge://extensions`).
 3. Ative o **Modo do desenvolvedor** (canto superior direito).
 4. Clique em **Carregar sem compactação** (*Load unpacked*) e selecione a pasta `creadf-art-helper`.

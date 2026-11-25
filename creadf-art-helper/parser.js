@@ -205,12 +205,30 @@
   }
 
   function splitAddressNumber(addr) {
-    if (!addr) return { logradouro: '', numero: '' };
-    const m = addr.match(/^(.*?)[,\s]+(?:n[º°o.]*\s*)?(\d{1,5}|s\/n)\s*$/i);
-    if (m && m[1].trim().length > 3) {
-      return { logradouro: m[1].trim(), numero: m[2].toUpperCase() };
+    if (!addr) return { logradouro: '', numero: '', bairro: '' };
+    let clean = addr.trim();
+    let bairro = '';
+
+    const bairroMatch = clean.match(/[,;\-\s]+bairro\s*[:\-]?\s*([^,;\n]+?)\.?\s*$/i);
+    if (bairroMatch) {
+      bairro = bairroMatch[1].trim();
+      clean = clean.slice(0, bairroMatch.index).trim();
     }
-    return { logradouro: addr.trim(), numero: '' };
+
+    // Match explicit "nº 96" / "n° 96" / "n. 96" anywhere (even if followed by complement)
+    const explicitNum = clean.match(/^(.*?)[,\s\-]+n[º°o.]+\s*(\d{1,5}|s\/n)\b(.*)$/i);
+    if (explicitNum && explicitNum[1].trim().length > 3) {
+      const rest = explicitNum[3].replace(/^[,\s\-]+/, '').trim();
+      const logradouro = rest ? `${explicitNum[1].trim()}, ${rest}` : explicitNum[1].trim();
+      return { logradouro, numero: explicitNum[2].toUpperCase(), bairro };
+    }
+
+    // Fallback: trailing number without "nº"
+    const m = clean.match(/^(.*?)[,\s]+(\d{1,5}|s\/n)\s*$/i);
+    if (m && m[1].trim().length > 3) {
+      return { logradouro: m[1].trim(), numero: m[2].toUpperCase(), bairro };
+    }
+    return { logradouro: clean, numero: '', bairro };
   }
 
   function parseSectionLines(lines) {
@@ -237,6 +255,100 @@
       }
     }
     return '';
+  }
+
+  const OBRA_HEADER_RE = /(?:INFORMACOES|DADOS)\s+(?:DA\s+|DE\s+)?(?:OBRA|ALDEIA)|^(?:INFORMACOES\s+)?OBRA(?:\s*\(\s*ALDEIA\s*\)|\s*\d+)?\b|^LOCAL\s+(?:DA\s+)?OBRA\b|^ALDEIA\s*\d+\b/;
+  const OBRA_NAME_KEY_RE = /^(?:NOME\s+(?:DA\s+)?ALDEIA|ALDEIA|LOGRADOURO|ENDERECO|LOCAL)\b/;
+
+  function parseSingleObraEntries(entries, fallbackAldeia = '') {
+    const oCepLine = findValue(entries, [/^CEP\b/]);
+    const obraCep = extractCEP(oCepLine);
+
+    let obraCidade = findValue(entries, [/^CIDADE\b/, /^MUNICIPIO\b/]);
+    let obraUf = normalizeUF(findValue(entries, [/^UF\b/, /^ESTADO\b/]));
+    if (!obraCidade || !obraUf) {
+      const munMatch = oCepLine.match(/([^/()\n]+?)\s*\/\s*([^/()\n]+)/i);
+      if (munMatch) {
+        if (!obraCidade) {
+          obraCidade = munMatch[1].trim().replace(/^(?:munic[ií]pio|cidade)\s+(?:de\s+)?/i, '').trim();
+        }
+        if (!obraUf) obraUf = normalizeUF(munMatch[2].trim());
+      }
+    }
+
+    const nomeAldeia =
+      findValue(entries, [/NOME\s+(DA\s+)?ALDEIA/, /^ALDEIA\b/, /^LOGRADOURO\b/, /^ENDERECO\b/, /^LOCAL\b/]) ||
+      fallbackAldeia;
+    const obraNumero = findValue(entries, [/^NUMERO\b/]);
+    const obraBairro = findValue(entries, [/^BAIRRO\b/]);
+    const obraComplemento = findValue(entries, [/^COMPLEMENTO\b/]);
+
+    const coordRaw = findValue(entries, [/LATITUDE/, /COORDENADA/, /LAT\s*\/\s*LON/]);
+    const coords = parseCoordinates(coordRaw);
+
+    return {
+      obraCep,
+      obraCidade: sanitizeArtText(obraCidade).slice(0, 50),
+      obraUf,
+      nomeAldeia: formatNomeAldeia(nomeAldeia),
+      obraNumero: sanitizeArtText(obraNumero).slice(0, 5) || 'S/N',
+      obraBairro: sanitizeArtText(obraBairro).slice(0, 72) || 'ZONA RURAL',
+      obraComplemento: sanitizeArtText(obraComplemento).slice(0, 80),
+      latitude: coords.latDecimal,
+      longitude: coords.lonDecimal
+    };
+  }
+
+  function splitObraEntryBlocks(obraLines) {
+    const blocks = [];
+    let current = [];
+    let hasName = false;
+    let hasCep = false;
+
+    const flush = () => {
+      if (current.length > 0) {
+        blocks.push(current);
+        current = [];
+        hasName = false;
+        hasCep = false;
+      }
+    };
+
+    for (const rawLine of obraLines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (/^(@\S+\s*)+$/.test(line)) continue;
+
+      const norm = stripAccents(line).toUpperCase().trim();
+      if (OBRA_HEADER_RE.test(norm) && line.indexOf(':') === -1) {
+        if (hasName || hasCep) flush();
+        continue;
+      }
+
+      const colonIdx = line.indexOf(':');
+      if (colonIdx > 0) {
+        const key = stripAccents(line.slice(0, colonIdx)).toUpperCase().trim();
+        const val = line.slice(colonIdx + 1).trim();
+
+        if (/^(?:\d+|[A-Z])[º°o.]*\s*(?:ENDERECO|ALDEIA)\b/.test(key) && !val) {
+          if (hasName || hasCep) flush();
+          continue;
+        }
+
+        if (OBRA_NAME_KEY_RE.test(key) && hasName) {
+          flush();
+        } else if (/^CEP\b/.test(key) && hasCep && hasName) {
+          flush();
+        }
+
+        if (OBRA_NAME_KEY_RE.test(key) && val) hasName = true;
+        if (/^CEP\b/.test(key) && extractCEP(val)) hasCep = true;
+
+        current.push({ key, val, raw: line });
+      }
+    }
+    flush();
+    return blocks;
   }
 
   function parseArtMessage(rawText) {
@@ -302,7 +414,7 @@
     const cEndSplit = splitAddressNumber(cEndRaw);
     const cNumeroExplicit = findValue(cEntries, [/^NUMERO\b/, /^N[º°]\b/]);
     const contratanteNumero = cNumeroExplicit || cEndSplit.numero;
-    const contratanteBairro = findValue(cEntries, [/^BAIRRO\b/]);
+    const contratanteBairro = findValue(cEntries, [/^BAIRRO\b/]) || cEndSplit.bairro;
     const contratanteCidade = findValue(cEntries, [/^CIDADE\b/, /^MUNICIPIO\b/]);
     const contratanteUf = normalizeUF(findValue(cEntries, [/^UF\b/, /^ESTADO\b/]));
     let contratanteComplemento = findValue(cEntries, [/^COMPLEMENTO\b/]);
@@ -312,34 +424,30 @@
       contratanteComplemento = '';
     }
 
-    // Obra fields
+    // Obra fields (supports 1 or multiple addresses in the same message)
     const numeroProcesso = findValue(oEntries, [/PROCESSO/, /CONTRATO/]) || findValue(allEntries, [/PROCESSO/]);
 
-    const oCepLine = findValue(oEntries, [/^CEP\b/]);
-    const obraCep = extractCEP(oCepLine);
+    const obraBlocks = splitObraEntryBlocks(obraLines);
+    const obras = obraBlocks.length > 0
+      ? obraBlocks.map((block, idx) => parseSingleObraEntries(block, idx === 0 ? aldeiaFromContratante : ''))
+      : [parseSingleObraEntries(oEntries, aldeiaFromContratante)];
 
-    // Parse "( Município de Paragominas/Pará)" or "Paragominas/PA"
-    let obraCidade = findValue(oEntries, [/^CIDADE\b/, /^MUNICIPIO\b/]);
-    let obraUf = normalizeUF(findValue(oEntries, [/^UF\b/, /^ESTADO\b/]));
-    if (!obraCidade || !obraUf) {
-      const munMatch = oCepLine.match(/([^/()\n]+?)\s*\/\s*([^/()\n]+)/i);
-      if (munMatch) {
-        if (!obraCidade) {
-          obraCidade = munMatch[1].trim().replace(/^(?:munic[ií]pio|cidade)\s+(?:de\s+)?/i, '').trim();
-        }
-        if (!obraUf) obraUf = normalizeUF(munMatch[2].trim());
+    const firstObra = obras[0];
+    for (let i = 1; i < obras.length; i++) {
+      obras[i].latitude = '';
+      obras[i].longitude = '';
+      if (!obras[i].obraCep && firstObra.obraCep) {
+        obras[i].obraCep = firstObra.obraCep;
+        if (!obras[i].obraCidade) obras[i].obraCidade = firstObra.obraCidade;
+        if (!obras[i].obraUf) obras[i].obraUf = firstObra.obraUf;
       }
     }
 
-    const nomeAldeia =
-      findValue(oEntries, [/NOME\s+(DA\s+)?ALDEIA/, /^ALDEIA\b/, /^LOGRADOURO\b/, /^ENDERECO\b/, /^LOCAL\b/]) ||
-      aldeiaFromContratante;
-    const obraNumero = findValue(oEntries, [/^NUMERO\b/]);
-    const obraBairro = findValue(oEntries, [/^BAIRRO\b/]);
-    const obraComplemento = findValue(oEntries, [/^COMPLEMENTO\b/]);
-
-    const coordRaw = findValue(oEntries, [/LATITUDE/, /COORDENADA/, /LAT\s*\/\s*LON/]) || findValue(allEntries, [/LATITUDE/, /COORDENADA/]);
-    const coords = parseCoordinates(coordRaw);
+    const coordFallback = parseCoordinates(findValue(allEntries, [/LATITUDE/, /COORDENADA/]));
+    if (!firstObra.latitude && coordFallback.latDecimal) {
+      firstObra.latitude = coordFallback.latDecimal;
+      firstObra.longitude = coordFallback.lonDecimal;
+    }
 
     const objetoProjeto = findValue(oEntries, [/OBJETO(\s+DO\s+PROJETO)?/, /DESCRICAO\s+(DO\s+)?SERVICO/]) || findValue(allEntries, [/OBJETO/]);
 
@@ -361,15 +469,16 @@
       contratanteCidade: sanitizeArtText(contratanteCidade).slice(0, 50),
       contratanteUf,
       numeroProcesso: sanitizeArtText(numeroProcesso).slice(0, 30),
-      obraCep,
-      obraCidade: sanitizeArtText(obraCidade).slice(0, 50),
-      obraUf,
-      nomeAldeia: formatNomeAldeia(nomeAldeia),
-      obraNumero: sanitizeArtText(obraNumero).slice(0, 5) || 'S/N',
-      obraBairro: sanitizeArtText(obraBairro).slice(0, 72) || 'ZONA RURAL',
-      obraComplemento: sanitizeArtText(obraComplemento).slice(0, 80),
-      latitude: coords.latDecimal,
-      longitude: coords.lonDecimal,
+      obraCep: firstObra.obraCep,
+      obraCidade: firstObra.obraCidade,
+      obraUf: firstObra.obraUf,
+      nomeAldeia: firstObra.nomeAldeia,
+      obraNumero: firstObra.obraNumero,
+      obraBairro: firstObra.obraBairro,
+      obraComplemento: firstObra.obraComplemento,
+      latitude: firstObra.latitude,
+      longitude: firstObra.longitude,
+      obras,
       objetoProjeto: sanitizeArtText(objetoProjeto),
       atividadeQuantidade,
       observacoes: ''

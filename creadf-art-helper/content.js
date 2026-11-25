@@ -194,79 +194,104 @@
     return count;
   }
 
-  async function fillObra(data, settings) {
+  async function fillObraAddressElements(els, data, settings) {
     let count = 0;
+    const { cepEl, logEl, numEl, bairroEl, compEl, cidadeEl, ufEl } = els;
 
-    if (settings.repetirProprietario) {
-      const cnpj = (byId('CPF_CNPJ[1]') && byId('CPF_CNPJ[1]').value) || data.cnpj;
-      const nome = (byId('NOME[1]') && byId('NOME[1]').value) || data.contratanteNome;
-      const email = (byId('E_MAIL[1]') && byId('E_MAIL[1]').value) || data.email;
-      const ddd = (byId('DDD[1]') && byId('DDD[1]').value) || data.ddd;
-      const tel = (byId('TELEFONE[1]') && byId('TELEFONE[1]').value) || data.telefone;
+    if (data.obraCep && cepEl && cepEl.id) {
+      if (setFieldValue(cepEl.id, data.obraCep, { dispatchInput: true })) count++;
 
-      if (setFieldValue('CPF_CNPJ[2]', cnpj)) count++;
-      if (setFieldValue('NOME[2]', nome)) count++;
-      if (setFieldValue('E_MAIL[2]', email)) count++;
-      if (setFieldValue('DDD[2]', ddd)) count++;
-      if (setFieldValue('TELEFONE[2]', tel)) count++;
-    }
-
-    if (settings.finalidade) {
-      if (setFieldValue('CODIGO_DA_FINALIDADE', settings.finalidade)) count++;
-    }
-
-    if (settings.preencherDatasContratoHoje !== false) {
-      const hoje = new Date();
-      const fim = addOneYear(hoje);
-      if (setFieldValue('DATA_PREVISTA_DE_INICIO2', formatDateBR(hoje), { dispatchChange: true })) count++;
-      if (setFieldValue('DATA_PREVISTA_DE_CONCLUSAO2', formatDateBR(fim), { dispatchChange: true })) count++;
-    }
-
-    if (setFieldValue('LATITUDE2', data.latitude)) count++;
-    if (setFieldValue('LONGITUDE2', data.longitude)) count++;
-
-    if (data.obraCep) {
-      if (setFieldValue('CEP[10]', data.obraCep, { dispatchInput: true })) count++;
-
-      // Trigger CREA-DF CEP lookup and wait briefly for CIDADE[10]/UF[10] to populate
-      const cep10 = byId('CEP[10]');
-      if (cep10) {
-        const prevCidade = (byId('CIDADE[10]') && byId('CIDADE[10]').value) || '';
-        cep10.dispatchEvent(new Event('blur', { bubbles: true }));
-        await waitForCondition(() => {
-          const c = byId('CIDADE[10]');
-          const u = byId('UF[10]');
-          return c && c.value && c.value !== prevCidade && u && u.value;
-        }, 1800, 150);
-      }
+      const prevCidade = (cidadeEl && cidadeEl.value) || '';
+      cepEl.dispatchEvent(new Event('blur', { bubbles: true }));
+      await waitForCondition(() => {
+        return cidadeEl && cidadeEl.value && cidadeEl.value !== prevCidade && ufEl && ufEl.value;
+      }, 1800, 150);
     }
 
     // Apply Aldeia address AFTER PesquisaCep finishes so it isn't overwritten
-    if (data.nomeAldeia) {
-      if (setFieldValue('DESCRICAO_DO_LOGRADOURO[10]', data.nomeAldeia, { forceEnable: true })) count++;
+    if (data.nomeAldeia && logEl && logEl.id) {
+      if (setFieldValue(logEl.id, data.nomeAldeia, { forceEnable: true })) count++;
     }
 
     const obraNum = data.obraNumero || settings.obraNumeroPadrao || 'S/N';
-    if (setFieldValue('NUMERO[10]', obraNum)) count++;
+    if (numEl && numEl.id && setFieldValue(numEl.id, obraNum)) count++;
 
-    const currentBairro = (byId('BAIRRO[10]') && byId('BAIRRO[10]').value.trim()) || '';
+    const currentBairro = (bairroEl && bairroEl.value.trim()) || '';
     const obraBairro = data.obraBairro || currentBairro || settings.obraBairroPadrao || 'ZONA RURAL';
-    if (setFieldValue('BAIRRO[10]', obraBairro, { forceEnable: true })) count++;
+    if (bairroEl && bairroEl.id && setFieldValue(bairroEl.id, obraBairro, { forceEnable: true })) count++;
 
-    if (data.obraComplemento) {
-      if (setFieldValue('COMPLEMENTO[10]', data.obraComplemento)) count++;
+    if (data.obraComplemento && compEl && compEl.id) {
+      if (setFieldValue(compEl.id, data.obraComplemento)) count++;
     }
 
-    const cidadeEl = byId('CIDADE[10]');
-    if ((!cidadeEl || !cidadeEl.value.trim()) && data.obraCidade) {
-      if (setFieldValue('CIDADE[10]', data.obraCidade, { forceEnable: true })) count++;
+    if (cidadeEl && cidadeEl.id && !cidadeEl.value.trim() && data.obraCidade) {
+      if (setFieldValue(cidadeEl.id, data.obraCidade, { forceEnable: true })) count++;
     }
 
-    const ufEl = byId('UF[10]');
-    if ((!ufEl || !ufEl.value) && data.obraUf) {
-      if (setFieldValue('UF[10]', data.obraUf, { forceEnable: true })) count++;
+    if (ufEl && ufEl.id && !ufEl.value && data.obraUf) {
+      if (setFieldValue(ufEl.id, data.obraUf, { forceEnable: true })) count++;
     }
 
+    return count;
+  }
+
+  async function fillObra(data, settings, opts = {}) {
+    let count = 0;
+    const addressOnly = Boolean(opts && opts.addressOnly);
+    const containerId = opts && opts.containerId;
+
+    if (!addressOnly) {
+      if (settings.repetirProprietario) {
+        const cnpj = (byId('CPF_CNPJ[1]') && byId('CPF_CNPJ[1]').value) || data.cnpj;
+        const nome = (byId('NOME[1]') && byId('NOME[1]').value) || data.contratanteNome;
+        const email = (byId('E_MAIL[1]') && byId('E_MAIL[1]').value) || data.email;
+        const ddd = (byId('DDD[1]') && byId('DDD[1]').value) || data.ddd;
+        const tel = (byId('TELEFONE[1]') && byId('TELEFONE[1]').value) || data.telefone;
+
+        if (setFieldValue('CPF_CNPJ[2]', cnpj)) count++;
+        if (setFieldValue('NOME[2]', nome)) count++;
+        if (setFieldValue('E_MAIL[2]', email)) count++;
+        if (setFieldValue('DDD[2]', ddd)) count++;
+        if (setFieldValue('TELEFONE[2]', tel)) count++;
+      }
+
+      if (settings.finalidade) {
+        if (setFieldValue('CODIGO_DA_FINALIDADE', settings.finalidade)) count++;
+      }
+
+      if (settings.preencherDatasContratoHoje !== false) {
+        const hoje = new Date();
+        const fim = addOneYear(hoje);
+        if (setFieldValue('DATA_PREVISTA_DE_INICIO2', formatDateBR(hoje), { dispatchChange: true })) count++;
+        if (setFieldValue('DATA_PREVISTA_DE_CONCLUSAO2', formatDateBR(fim), { dispatchChange: true })) count++;
+      }
+
+      if (setFieldValue('LATITUDE2', data.latitude)) count++;
+      if (setFieldValue('LONGITUDE2', data.longitude)) count++;
+    }
+
+    const container = containerId ? byId(containerId) : null;
+    const els = container
+      ? {
+          cepEl: container.querySelector('input[id^="CEP["]'),
+          logEl: container.querySelector('input[id^="DESCRICAO_DO_LOGRADOURO["]'),
+          numEl: container.querySelector('input[id^="NUMERO["]'),
+          bairroEl: container.querySelector('input[id^="BAIRRO["]'),
+          compEl: container.querySelector('input[id^="COMPLEMENTO["]'),
+          cidadeEl: container.querySelector('input[id^="CIDADE["]'),
+          ufEl: container.querySelector('select[id^="UF["]')
+        }
+      : {
+          cepEl: byId('CEP[10]'),
+          logEl: byId('DESCRICAO_DO_LOGRADOURO[10]'),
+          numEl: byId('NUMERO[10]'),
+          bairroEl: byId('BAIRRO[10]'),
+          compEl: byId('COMPLEMENTO[10]'),
+          cidadeEl: byId('CIDADE[10]'),
+          ufEl: byId('UF[10]')
+        };
+
+    count += await fillObraAddressElements(els, data, settings);
     return count;
   }
 
@@ -443,6 +468,28 @@
           filled += await overrideContratoEndereco(data || {}, settings || {});
         } else if (step === 'obra') {
           filled += await fillObra(data || {}, settings || {});
+        } else if (step === 'get_obra_cont') {
+          const contEl = byId('i_cont_endereco');
+          sendResponse({ ok: true, cont: contEl ? contEl.value : '' });
+          return;
+        } else if (step === 'wait_obra_added') {
+          const prevCont = msg.prevCont || '';
+          await waitForCondition(() => {
+            const cur = byId('i_cont_endereco');
+            const div = byId(`div_dados_enderecos_obraservico_${prevCont}`);
+            return (
+              cur &&
+              cur.value !== prevCont &&
+              div &&
+              div.querySelector('input[id^="DESCRICAO_DO_LOGRADOURO["]')
+            );
+          }, 6000, 150);
+          await new Promise((r) => setTimeout(r, 250));
+        } else if (step === 'obra_extra') {
+          filled += await fillObra(data || {}, settings || {}, {
+            addressOnly: true,
+            containerId: msg.containerId
+          });
         } else if (step === 'observacoes') {
           filled += fillObservacoes(data || {});
         } else if (step === 'declaracoes') {
