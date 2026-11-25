@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PREENCHEDOR AUTOMÁTICO DE ART SUPER PODEROSO CASEIRO",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Extrai dados de mensagens (DSEI/Aldeias), converte coordenadas GMS para decimal e preenche o formulário de ART do CREA-DF.",
   "permissions": [
     "activeTab",

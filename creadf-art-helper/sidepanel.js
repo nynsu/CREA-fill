@@ -83,7 +83,105 @@ const DEFAULT_BIM_PRESET = {
   items: DEFAULT_ATIVIDADES_BIM
 };
 
-let atividadePresets = [DEFAULT_BIM_PRESET];
+const BUILT_IN_PRESETS = [
+  DEFAULT_BIM_PRESET,
+  {
+    id: 'default-bim-hidraulica-saa',
+    name: 'Hidráulica SAA',
+    builtIn: true,
+    items: [
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto de Instalações' },
+        ID_TOS: { text: 'Saneamento Ambiental' },
+        SUB_GRUPO_TOS: { text: 'Sistema de Abastecimento de Água' },
+        OBRA_SERVICO_TOS: { text: 'de sistema de abastecimento de água' },
+        COMPLEMENTO_TOS: { text: 'instalações hidráulicas em sistemas de abastecimento de água' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      },
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto' },
+        ID_TOS: { text: 'Construção Civil' },
+        SUB_GRUPO_TOS: { text: 'Edificações' },
+        OBRA_SERVICO_TOS: { text: 'de edificação' },
+        COMPLEMENTO_TOS: { text: 'de alvenaria' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      }
+    ]
+  },
+  {
+    id: 'default-bim-hidraulica',
+    name: 'Hidráulica',
+    builtIn: true,
+    items: [
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto de Instalações' },
+        ID_TOS: { text: 'Construção Civil' },
+        SUB_GRUPO_TOS: { text: 'Instalações Hidrossanitárias' },
+        OBRA_SERVICO_TOS: { text: 'de instalação de sistema de esgoto sanitário' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      },
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto de Instalações' },
+        ID_TOS: { text: 'Construção Civil' },
+        SUB_GRUPO_TOS: { text: 'Instalações Hidrossanitárias' },
+        OBRA_SERVICO_TOS: { text: 'de sistema de água potável' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      },
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto de Instalações' },
+        ID_TOS: { text: 'Construção Civil' },
+        SUB_GRUPO_TOS: { text: 'Instalações Hidrossanitárias' },
+        OBRA_SERVICO_TOS: { text: 'de sistema de redes de águas pluviais' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      }
+    ]
+  },
+  {
+    id: 'default-bim-estrutura',
+    name: 'Estrutura',
+    builtIn: true,
+    items: [
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto' },
+        ID_TOS: { text: 'Estruturas' },
+        SUB_GRUPO_TOS: { text: 'Estruturas de Concreto e Argamassa Armada' },
+        OBRA_SERVICO_TOS: { text: 'de estrutura de concreto armado' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      }
+    ]
+  },
+  {
+    id: 'default-bim-orcamento',
+    name: 'Orçamento',
+    builtIn: true,
+    items: [
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Elaboração de orçamento' },
+        ID_TOS: { text: 'Construção Civil' },
+        SUB_GRUPO_TOS: { text: 'Edificações' },
+        OBRA_SERVICO_TOS: { text: 'de edificação' },
+        COMPLEMENTO_TOS: { text: 'de alvenaria' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      }
+    ]
+  }
+];
+
+let atividadePresets = [...BUILT_IN_PRESETS];
 let selectedPresetId = DEFAULT_BIM_PRESET_ID;
 let recentHistory = [];
 let isFilling = false;
@@ -514,12 +612,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.data) writeFormData(state.data);
       writeSettings(state.settings || {});
       if (Array.isArray(state.atividadePresets) && state.atividadePresets.length > 0) {
-        const hasBuiltIn = state.atividadePresets.some((p) => p.id === DEFAULT_BIM_PRESET_ID);
-        atividadePresets = hasBuiltIn
-          ? state.atividadePresets
-          : [DEFAULT_BIM_PRESET, ...state.atividadePresets];
+        const builtInIds = new Set(BUILT_IN_PRESETS.map((p) => p.id));
+        const customPresets = state.atividadePresets.filter(
+          (p) => p && !p.builtIn && !builtInIds.has(p.id)
+        );
+        atividadePresets = [...BUILT_IN_PRESETS, ...customPresets];
       } else {
-        atividadePresets = [DEFAULT_BIM_PRESET];
+        atividadePresets = [...BUILT_IN_PRESETS];
       }
       if (state.selectedPresetId) {
         selectedPresetId = state.selectedPresetId;

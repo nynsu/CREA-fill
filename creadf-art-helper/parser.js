@@ -45,6 +45,20 @@
     return `${digits.slice(0, 5)}-${digits.slice(5)}`;
   }
 
+  function extractCEP(raw) {
+    const m = (raw || '').match(/\d{2}\.?\d{3}-?\d{3}/);
+    return m ? formatCEP(m[0]) : '';
+  }
+
+  function formatNomeAldeia(raw) {
+    let val = sanitizeArtText(raw);
+    if (!val) return '';
+    if (!/\baldeia\b/i.test(val)) {
+      val = `ALDEIA ${val}`;
+    }
+    return val.toUpperCase().slice(0, 50);
+  }
+
   function formatCNPJorCPF(raw) {
     const digits = (raw || '').replace(/\D/g, '');
     if (digits.length === 14) {
@@ -282,8 +296,7 @@
     const phone = parsePhone(phoneRaw);
 
     const cCepRaw = findValue(cEntries, [/^CEP\b/]);
-    const cCepMatch = cCepRaw.match(/\d{5}-?\d{3}/);
-    const contratanteCep = cCepMatch ? formatCEP(cCepMatch[0]) : '';
+    const contratanteCep = extractCEP(cCepRaw);
 
     const cEndRaw = findValue(cEntries, [/^ENDERECO\b/, /^LOGRADOURO\b/]);
     const cEndSplit = splitAddressNumber(cEndRaw);
@@ -303,8 +316,7 @@
     const numeroProcesso = findValue(oEntries, [/PROCESSO/, /CONTRATO/]) || findValue(allEntries, [/PROCESSO/]);
 
     const oCepLine = findValue(oEntries, [/^CEP\b/]);
-    const oCepMatch = oCepLine.match(/\d{5}-?\d{3}/);
-    const obraCep = oCepMatch ? formatCEP(oCepMatch[0]) : '';
+    const obraCep = extractCEP(oCepLine);
 
     // Parse "( Município de Paragominas/Pará)" or "Paragominas/PA"
     let obraCidade = findValue(oEntries, [/^CIDADE\b/, /^MUNICIPIO\b/]);
@@ -352,7 +364,7 @@
       obraCep,
       obraCidade: sanitizeArtText(obraCidade).slice(0, 50),
       obraUf,
-      nomeAldeia: sanitizeArtText(nomeAldeia).slice(0, 50),
+      nomeAldeia: formatNomeAldeia(nomeAldeia),
       obraNumero: sanitizeArtText(obraNumero).slice(0, 5) || 'S/N',
       obraBairro: sanitizeArtText(obraBairro).slice(0, 72) || 'ZONA RURAL',
       obraComplemento: sanitizeArtText(obraComplemento).slice(0, 80),
