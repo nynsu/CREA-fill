@@ -78,7 +78,8 @@ const DEFAULT_ATIVIDADES_BIM = [
 const DEFAULT_BIM_PRESET_ID = 'default-bim-eletrica';
 const DEFAULT_BIM_PRESET = {
   id: DEFAULT_BIM_PRESET_ID,
-  name: 'BIM Elétrica + SPDA (Padrão)',
+  name: 'ELE + SPDA',
+  group: 'Elétrica',
   builtIn: true,
   items: DEFAULT_ATIVIDADES_BIM
 };
@@ -86,8 +87,27 @@ const DEFAULT_BIM_PRESET = {
 const BUILT_IN_PRESETS = [
   DEFAULT_BIM_PRESET,
   {
+    id: 'default-bim-eletrica-dados',
+    name: 'ELE + SPDA + DADOS',
+    group: 'Elétrica',
+    builtIn: true,
+    items: [
+      ...DEFAULT_ATIVIDADES_BIM,
+      {
+        CODIGO_NIVEL_ATUACAO_TOS: { value: '16', text: 'Elaboração em BIM' },
+        CODIGO_ATIVIDADE_PROFISSIONAL_TOS: { text: 'Projeto' },
+        ID_TOS: { text: 'Telecomunicações' },
+        SUB_GRUPO_TOS: { text: 'Sistemas de Telecomunicação' },
+        OBRA_SERVICO_TOS: { text: 'de sistemas de telecomunicação' },
+        CODIGO_DA_UNIDADE: { text: 'unidade - un' },
+        QUANTIDADE: '1,0000'
+      }
+    ]
+  },
+  {
     id: 'default-bim-hidraulica-saa',
-    name: 'Hidráulica SAA',
+    name: '🚰 Hidráulica SAA',
+    group: 'Padrão',
     builtIn: true,
     items: [
       {
@@ -114,7 +134,8 @@ const BUILT_IN_PRESETS = [
   },
   {
     id: 'default-bim-hidraulica',
-    name: 'Hidráulica',
+    name: '💧 Hidráulica',
+    group: 'Padrão',
     builtIn: true,
     items: [
       {
@@ -148,7 +169,8 @@ const BUILT_IN_PRESETS = [
   },
   {
     id: 'default-bim-estrutura',
-    name: 'Estrutura',
+    name: '🏗️ Estrutura',
+    group: 'Padrão',
     builtIn: true,
     items: [
       {
@@ -164,7 +186,8 @@ const BUILT_IN_PRESETS = [
   },
   {
     id: 'default-bim-orcamento',
-    name: 'Orçamento',
+    name: '💰 Orçamento',
+    group: 'Padrão',
     builtIn: true,
     items: [
       {
@@ -228,8 +251,8 @@ function updateQuantityHighlight() {
   const unitSel = $('s_atividadeUnidadeOverride');
   const qtdEl = $('f_atividadeQuantidade');
   if (!unitSel || !qtdEl) return;
-  const needsArea = unitSel.value === '40' && !qtdEl.value.trim();
-  qtdEl.classList.toggle('input-warn', needsArea);
+  const needsQty = (unitSel.value === '40' || unitSel.value === 'metro - m') && !qtdEl.value.trim();
+  qtdEl.classList.toggle('input-warn', needsQty);
 }
 
 function updateCardBadges() {
@@ -266,14 +289,15 @@ function updateCardBadges() {
 }
 
 function renderHistorySelect() {
+  const row = $('historyRow');
   const sel = $('historySelect');
   if (!sel) return;
   sel.innerHTML = '<option value="">Histórico recente (últimas 5)...</option>';
   if (recentHistory.length === 0) {
-    sel.classList.add('hidden');
+    if (row) row.classList.add('hidden');
     return;
   }
-  sel.classList.remove('hidden');
+  if (row) row.classList.remove('hidden');
   for (const item of recentHistory) {
     const opt = document.createElement('option');
     opt.value = item.id;
@@ -357,21 +381,71 @@ function getSelectedPreset() {
 
 function renderPresetSelect() {
   const sel = $('s_atividadePresetId');
+  const subWrap = $('eletricaSubgroup');
+  const subSel = $('s_eletricaSubpreset');
   if (!sel) return;
   sel.innerHTML = '';
-  for (const preset of atividadePresets) {
+
+  const eletricaPresets = atividadePresets.filter((p) => p.builtIn && p.group === 'Elétrica');
+  const otherBuiltIns = atividadePresets.filter((p) => p.builtIn && p.group !== 'Elétrica');
+  const customPresets = atividadePresets.filter((p) => !p.builtIn);
+
+  if (eletricaPresets.length > 0) {
+    const opt = document.createElement('option');
+    opt.value = 'group-eletrica';
+    opt.textContent = '⚡ Elétrica';
+    sel.appendChild(opt);
+  }
+
+  for (const preset of otherBuiltIns) {
     const opt = document.createElement('option');
     opt.value = preset.id;
     opt.textContent = `${preset.name} (${preset.items.length})`;
     sel.appendChild(opt);
   }
+
+  if (customPresets.length > 0) {
+    const userGroup = document.createElement('optgroup');
+    userGroup.label = '⭐ Salvos pelo usuário';
+    for (const preset of customPresets) {
+      const opt = document.createElement('option');
+      opt.value = preset.id;
+      opt.textContent = `${preset.name} (${preset.items.length})`;
+      userGroup.appendChild(opt);
+    }
+    sel.appendChild(userGroup);
+  }
+
+  if (subSel) {
+    subSel.innerHTML = '';
+    for (const preset of eletricaPresets) {
+      const opt = document.createElement('option');
+      opt.value = preset.id;
+      opt.textContent = `${preset.name} (${preset.items.length})`;
+      subSel.appendChild(opt);
+    }
+  }
+
   const current = getSelectedPreset();
   selectedPresetId = current.id;
-  sel.value = selectedPresetId;
+  const isEletrica = Boolean(current.builtIn && current.group === 'Elétrica');
+  sel.value = isEletrica ? 'group-eletrica' : selectedPresetId;
 
+  if (subWrap && subSel) {
+    subWrap.classList.toggle('hidden', !isEletrica);
+    if (isEletrica) {
+      subSel.value = selectedPresetId;
+    }
+  }
+
+  const isCustom = !current.builtIn;
   const delBtn = $('btnDeletePreset');
   if (delBtn) {
-    delBtn.disabled = Boolean(current.builtIn);
+    delBtn.classList.toggle('hidden', !isCustom);
+  }
+  const delAllBtn = $('btnDeleteAllPresets');
+  if (delAllBtn) {
+    delAllBtn.classList.toggle('hidden', !isCustom);
   }
   renderAtividadeSummary(current);
 }
@@ -499,6 +573,10 @@ async function applyPresetAtividades(tabId, preset, onProgress) {
     updateQuantityHighlight();
     throw new Error('Informe a Quantidade / Área em m² no card 4 antes de lançar.');
   }
+  if (unidadeOverride === 'metro - m' && !qtdFormatted) {
+    updateQuantityHighlight();
+    throw new Error('Informe a Quantidade / Metragem em m no card 4 antes de lançar.');
+  }
 
   let count = 0;
   const items = (preset && preset.items) || [];
@@ -511,6 +589,9 @@ async function applyPresetAtividades(tabId, preset, onProgress) {
       effective.QUANTIDADE = qtdFormatted || '1,0000';
     } else if (unidadeOverride === '40') {
       effective.CODIGO_DA_UNIDADE = { value: '40', text: 'metros quadrados - m2' };
+      effective.QUANTIDADE = qtdFormatted;
+    } else if (unidadeOverride === 'metro - m') {
+      effective.CODIGO_DA_UNIDADE = { text: 'metro - m' };
       effective.QUANTIDADE = qtdFormatted;
     } else if (qtdFormatted) {
       effective.QUANTIDADE = qtdFormatted;
@@ -646,6 +727,13 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
   });
 
+  $('btnClearHistory').addEventListener('click', () => {
+    recentHistory = [];
+    renderHistorySelect();
+    persistState();
+    setStatus('Histórico limpo.');
+  });
+
   $('btnParse').addEventListener('click', () => parseFromInput());
   $('rawInput').addEventListener('paste', () => {
     setTimeout(() => parseFromInput(), 30);
@@ -664,6 +752,23 @@ document.addEventListener('DOMContentLoaded', () => {
     clearStepDoneStates();
     persistState();
     setStatus('Campos limpos.');
+  });
+
+  $('btnResetAll').addEventListener('click', () => {
+    $('rawInput').value = '';
+    const empty = {};
+    for (const k of DATA_FIELDS) empty[k] = '';
+    writeFormData(empty);
+    writeSettings(DEFAULT_SETTINGS);
+    selectedPresetId = DEFAULT_BIM_PRESET_ID;
+    const presetNameEl = $('presetNameInput');
+    if (presetNameEl) presetNameEl.value = '';
+    renderPresetSelect();
+    clearStepDoneStates();
+    updateCardBadges();
+    updateQuantityHighlight();
+    persistState();
+    setStatus('Tudo resetado para o padrão (presets salvos mantidos).', 'ok');
   });
 
   for (const key of DATA_FIELDS) {
@@ -700,6 +805,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('s_atividadePresetId').addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'group-eletrica') {
+      const subSel = $('s_eletricaSubpreset');
+      selectedPresetId = (subSel && subSel.value) || DEFAULT_BIM_PRESET_ID;
+    } else {
+      selectedPresetId = val;
+    }
+    renderPresetSelect();
+    persistState();
+  });
+
+  $('s_eletricaSubpreset').addEventListener('change', (e) => {
     selectedPresetId = e.target.value;
     renderPresetSelect();
     persistState();
@@ -723,6 +840,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPresetSelect();
     persistState();
     setStatus(`Preset "${current.name}" excluído.`);
+  });
+
+  $('btnDeleteAllPresets').addEventListener('click', () => {
+    const customCount = atividadePresets.filter((p) => !p.builtIn).length;
+    if (customCount === 0) return;
+    atividadePresets = atividadePresets.filter((p) => p.builtIn);
+    selectedPresetId = DEFAULT_BIM_PRESET_ID;
+    renderPresetSelect();
+    persistState();
+    setStatus(`${customCount} preset(s) salvo(s) excluído(s).`);
   });
 
   $('btnCaptureAtividade').addEventListener('click', async () => {

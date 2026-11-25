@@ -23,13 +23,17 @@
       <div class="card-header">
         <h2>1. Mensagem recebida</h2>
         <div class="btn-row">
-          <button id="btnParse" type="button" class="btn btn-secondary btn-xs">Extrair</button>
-          <button id="btnClear" type="button" class="btn btn-ghost btn-xs">Limpar</button>
+          <button id="btnParse" type="button" class="btn btn-secondary btn-xs" title="Extrair novamente os dados da mensagem">Atualizar</button>
+          <button id="btnClear" type="button" class="btn btn-ghost btn-xs" title="Limpar mensagem e campos extraídos">Limpar</button>
+          <button id="btnResetAll" type="button" class="btn btn-ghost btn-xs" title="Limpar tudo e restaurar opções padrão (mantém presets salvos)">Resetar Tudo</button>
         </div>
       </div>
-      <select id="historySelect" class="history-select hidden">
-        <option value="">Histórico recente (últimas 5)...</option>
-      </select>
+      <div id="historyRow" class="btn-row history-row hidden">
+        <select id="historySelect" class="history-select">
+          <option value="">Histórico recente (últimas 5)...</option>
+        </select>
+        <button id="btnClearHistory" type="button" class="btn btn-ghost btn-xs" title="Limpar histórico recente">Limpar Histórico</button>
+      </div>
       <textarea
         id="rawInput"
         rows="14"
@@ -217,8 +221,13 @@
             <span>Preset selecionado</span>
             <div class="btn-row preset-row">
               <select id="s_atividadePresetId"></select>
-              <button id="btnDeletePreset" type="button" class="btn btn-ghost btn-xs">Excluir</button>
+              <button id="btnDeletePreset" type="button" class="btn btn-ghost btn-xs hidden">Excluir</button>
+              <button id="btnDeleteAllPresets" type="button" class="btn btn-ghost btn-xs hidden" title="Excluir todos os presets salvos pelo usuário">Excluir Todos</button>
             </div>
+          </label>
+          <label id="eletricaSubgroup" class="hidden">
+            <span>Subgrupo Elétrica</span>
+            <select id="s_eletricaSubpreset"></select>
           </label>
           <p id="atividadeSummary" class="muted"></p>
           <div class="grid">
@@ -228,6 +237,7 @@
                 <option value="">Usar do preset</option>
                 <option value="73">unidade - un</option>
                 <option value="40">metros quadrados - m2</option>
+                <option value="metro - m">metro - m</option>
               </select>
             </label>
             <label>
