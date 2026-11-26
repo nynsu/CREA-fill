@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "CREA-DF ART",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Extrai dados de mensagens (DSEI/Aldeias), converte coordenadas GMS para decimal e preenche o formulário de ART do CREA-DF.",
   "permissions": [
     "activeTab",
     "scripting",
     "storage",
-    "sidePanel"
+    "sidePanel",
+    "clipboardRead"
   ],
   "host_permissions": [
     "https://art.creadf.org.br/*"

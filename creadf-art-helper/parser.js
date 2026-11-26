@@ -434,8 +434,6 @@
 
     const firstObra = obras[0];
     for (let i = 1; i < obras.length; i++) {
-      obras[i].latitude = '';
-      obras[i].longitude = '';
       if (!obras[i].obraCep && firstObra.obraCep) {
         obras[i].obraCep = firstObra.obraCep;
         if (!obras[i].obraCidade) obras[i].obraCidade = firstObra.obraCidade;

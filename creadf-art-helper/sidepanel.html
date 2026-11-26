@@ -23,6 +23,7 @@
       <div class="card-header">
         <h2>1. Mensagem recebida</h2>
         <div class="btn-row">
+          <button id="btnPaste" type="button" class="btn btn-secondary btn-xs" title="Colar da área de transferência e extrair">📋 Colar</button>
           <button id="btnParse" type="button" class="btn btn-secondary btn-xs" title="Extrair novamente os dados da mensagem">Atualizar</button>
           <button id="btnClear" type="button" class="btn btn-ghost btn-xs" title="Limpar mensagem e campos extraídos">Limpar</button>
           <button id="btnResetAll" type="button" class="btn btn-ghost btn-xs" title="Limpar tudo e restaurar opções padrão (mantém presets salvos)">Resetar Tudo</button>
@@ -340,6 +341,16 @@
       <button type="button" class="btn btn-secondary btn-xs step-btn" data-step="declaracoes">5. Decl.</button>
     </div>
   </footer>
+
+  <div id="reviewModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="reviewModalTitle">
+    <div class="modal-card">
+      <div id="reviewModalTitle" class="modal-title">⚠️ Preenchimento automático concluído!</div>
+      <p class="modal-text">
+        Esta extensão é apenas uma ferramenta de apoio. Lembre-se de revisar todas as abas antes de concluir a ART.
+      </p>
+      <button id="btnCloseReviewModal" type="button" class="btn btn-primary btn-block">Entendi</button>
+    </div>
+  </div>
 
   <script src="parser.js"></script>
   <script src="sidepanel.js"></script>

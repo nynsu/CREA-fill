@@ -206,7 +206,7 @@ const BUILT_IN_PRESETS = [
 
 let atividadePresets = [...BUILT_IN_PRESETS];
 let selectedPresetId = DEFAULT_BIM_PRESET_ID;
-const OBRA_ADDRESS_FIELDS = ['nomeAldeia', 'obraCep', 'obraNumero', 'obraCidade', 'obraUf', 'obraBairro'];
+const OBRA_ADDRESS_FIELDS = ['nomeAldeia', 'obraCep', 'obraNumero', 'obraCidade', 'obraUf', 'obraBairro', 'latitude', 'longitude'];
 let recentHistory = [];
 let allObras = [];
 let activeObraIndex = 0;
@@ -258,11 +258,47 @@ function updateQuantityHighlight() {
   qtdEl.classList.toggle('input-warn', needsQty);
 }
 
+const REQUIRED_HIGHLIGHT_FIELDS = ['cnpj', 'contratanteCep', 'nomeAldeia', 'obraCep', 'latitude', 'longitude'];
+
+function updateRequiredHighlights(data, hasAnyData) {
+  for (const key of REQUIRED_HIGHLIGHT_FIELDS) {
+    const el = $(`f_${key}`);
+    if (!el) continue;
+    el.classList.toggle('input-warn', Boolean(hasAnyData && !data[key]));
+  }
+}
+
+function armConfirmButton(btn, defaultLabel, onConfirm) {
+  if (!btn) return;
+  let timer = null;
+  const reset = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    delete btn.dataset.confirmArmed;
+    btn.textContent = defaultLabel;
+    btn.classList.remove('btn-confirm');
+  };
+  btn.addEventListener('click', () => {
+    if (btn.dataset.confirmArmed === '1') {
+      reset();
+      onConfirm();
+      return;
+    }
+    btn.dataset.confirmArmed = '1';
+    btn.textContent = 'Confirmar?';
+    btn.classList.add('btn-confirm');
+    timer = setTimeout(reset, 3000);
+  });
+}
+
 function updateCardBadges() {
   const data = readFormData();
   const hasAnyData = Boolean(
     data.contratanteNome || data.cnpj || data.nomeAldeia || data.obraCep || data.latitude
   );
+  updateRequiredHighlights(data, hasAnyData);
 
   const badgeC = $('badgeContrato');
   if (badgeC) {
@@ -313,6 +349,7 @@ function loadObraIntoForm(idx) {
       el.value = obra[k];
     }
   }
+  updateMapsLink();
   renderObraTabs();
 }
 
@@ -711,7 +748,7 @@ async function handleFill(step) {
     const rawData = readFormData();
     const data =
       allObras.length > 0
-        ? { ...rawData, ...allObras[0], latitude: rawData.latitude, longitude: rawData.longitude }
+        ? { ...rawData, ...allObras[0] }
         : rawData;
     const settings = readSettings();
     persistState();
@@ -781,11 +818,24 @@ async function handleFill(step) {
     }
 
     setStatus(`Preenchido (${totalFilled} campo(s)).`, 'ok');
+    if (step === 'all') {
+      openReviewModal();
+    }
   } catch (err) {
     setStatus(err.message || 'Erro ao comunicar com a página.', 'err');
   } finally {
     setFillingState(false);
   }
+}
+
+function openReviewModal() {
+  const modal = $('reviewModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeReviewModal() {
+  const modal = $('reviewModal');
+  if (modal) modal.classList.add('hidden');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -843,6 +893,27 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('Histórico limpo.');
   });
 
+  $('btnPaste').addEventListener('click', async () => {
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch (_) {
+      const ta = $('rawInput');
+      if (ta) {
+        ta.value = '';
+        ta.focus();
+        document.execCommand('paste');
+        text = ta.value;
+      }
+    }
+    if (!text || !text.trim()) {
+      setStatus('Área de transferência vazia ou bloqueada. Cole com Ctrl+V.', 'err');
+      return;
+    }
+    $('rawInput').value = text;
+    parseFromInput();
+  });
+
   $('btnParse').addEventListener('click', () => parseFromInput());
   $('rawInput').addEventListener('paste', () => {
     setTimeout(() => parseFromInput(), 30);
@@ -865,7 +936,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('Campos limpos.');
   });
 
-  $('btnResetAll').addEventListener('click', () => {
+  armConfirmButton($('btnResetAll'), 'Resetar Tudo', () => {
     $('rawInput').value = '';
     allObras = [];
     activeObraIndex = 0;
@@ -904,6 +975,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   $('btnFillAll').addEventListener('click', () => handleFill('all'));
+
+  const closeModalBtn = $('btnCloseReviewModal');
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', closeReviewModal);
+  }
+  const reviewModal = $('reviewModal');
+  if (reviewModal) {
+    reviewModal.addEventListener('click', (e) => {
+      if (e.target === reviewModal) closeReviewModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeReviewModal();
+  });
 
   $('btnLancarObs').addEventListener('click', () => {
     const obs = ($('f_observacoes') && $('f_observacoes').value.trim()) || '';
@@ -956,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus(`Preset "${current.name}" excluído.`);
   });
 
-  $('btnDeleteAllPresets').addEventListener('click', () => {
+  armConfirmButton($('btnDeleteAllPresets'), 'Excluir Todos', () => {
     const customCount = atividadePresets.filter((p) => !p.builtIn).length;
     if (customCount === 0) return;
     atividadePresets = atividadePresets.filter((p) => p.builtIn);
